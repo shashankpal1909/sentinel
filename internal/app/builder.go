@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"log/slog"
 	"net/url"
 
 	"sentinel/internal/config"
@@ -14,6 +15,9 @@ func Build(cfg *config.Config) (*Runtime, error) {
 		return nil, fmt.Errorf("config cannot be nil")
 	}
 
+	slog.Debug("Building runtime environment from configuration")
+
+	// Instantiate services and assign load balancing strategies
 	services := make(map[string]*domain.Service)
 	for name, svcCfg := range cfg.Services {
 		backends := make([]*domain.Backend, 0, len(svcCfg.Backends))
@@ -38,8 +42,10 @@ func Build(cfg *config.Config) (*Runtime, error) {
 			Balancer: balancer,
 			Backends: backends,
 		}
+		slog.Debug("Initialized domain service", "service", name, "backends", len(backends), "strategy", svcCfg.Strategy)
 	}
 
+	// Build route mappings linking prefix paths to existing services
 	routes := make([]*domain.Route, 0, len(cfg.Routes))
 	for _, r := range cfg.Routes {
 		svc, ok := services[r.Service]
@@ -51,7 +57,10 @@ func Build(cfg *config.Config) (*Runtime, error) {
 			Path:    r.Path,
 			Service: svc,
 		})
+		slog.Debug("Registered route mapping", "path", r.Path, "service", r.Service)
 	}
+
+	slog.Info("Runtime build completed successfully", "services_count", len(services), "routes_count", len(routes))
 
 	return &Runtime{
 		Routes:   routes,

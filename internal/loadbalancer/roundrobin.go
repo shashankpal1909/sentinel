@@ -16,6 +16,7 @@ func (r *RoundRobinBalancer) NextBackend(backends []*domain.Backend) (*domain.Ba
 		return nil, errors.New("no backends available")
 	}
 
+	// Atomically increment index and wrap around slice length
 	idx := r.current.Add(1) - 1
 	return backends[int(idx%uint32(len(backends)))], nil
 }
