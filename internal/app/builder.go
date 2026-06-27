@@ -28,14 +28,9 @@ func Build(cfg *config.Config) (*Runtime, error) {
 			})
 		}
 
-		var balancer domain.Balancer
-		switch svcCfg.Strategy {
-		case config.RoundRobin, "":
-			balancer = &loadbalancer.RoundRobinBalancer{}
-		case config.Random:
-			balancer = &loadbalancer.RandomBalancer{}
-		default:
-			return nil, fmt.Errorf("unknown balancer strategy %q for service %q", svcCfg.Strategy, name)
+		balancer, err := loadbalancer.New(svcCfg.Strategy)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create balancer for service %q: %w", name, err)
 		}
 
 		services[name] = &domain.Service{
