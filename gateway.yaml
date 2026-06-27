@@ -1,0 +1,13 @@
+server:
+  port: 8080
+
+services:
+  user-service:
+    strategy: round-robin
+    backends:
+      - http://localhost:8001
+      - http://localhost:8002
+
+routes:
+  - path: /users
+    service: user-service
