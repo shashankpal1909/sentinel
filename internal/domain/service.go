@@ -1,5 +1,9 @@
 package domain
 
+const (
+	StrategyRoundRobin = "round-robin"
+)
+
 type Service struct {
 	Name     string
 	Strategy string

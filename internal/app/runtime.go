@@ -2,43 +2,64 @@ package app
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"sentinel/internal/domain"
 )
 
 type Runtime struct {
-	Routes []*domain.Route
+	Routes   []*domain.Route
+	Services map[string]*domain.Service
 }
 
-func (r *Runtime) String() string {
-	if r == nil || len(r.Routes) == 0 {
-		return "Runtime: <empty>"
+func (r *Runtime) Dump(w io.Writer) {
+	if r == nil || (len(r.Routes) == 0 && len(r.Services) == 0) {
+		fmt.Fprint(w, "Runtime: <empty>")
+		return
 	}
 
-	var sb strings.Builder
-	sb.WriteString("Runtime Configuration:\n")
-	for i, route := range r.Routes {
-		if route == nil {
-			continue
-		}
-		fmt.Fprintf(&sb, "  [%d] Route: %s\n", i+1, route.Path)
-		if route.Service != nil {
-			fmt.Fprintf(&sb, "      Service: %s\n", route.Service.Name)
-			if route.Service.Strategy != "" {
-				fmt.Fprintf(&sb, "      Strategy: %s\n", route.Service.Strategy)
+	fmt.Fprintln(w, "Runtime Configuration:")
+	if len(r.Services) > 0 {
+		fmt.Fprintln(w, "  Services:")
+		for _, svc := range r.Services {
+			if svc == nil {
+				continue
 			}
-			if len(route.Service.Backends) > 0 {
-				sb.WriteString("      Backends:\n")
-				for _, b := range route.Service.Backends {
+			strategy := svc.Strategy
+			if strategy == "" {
+				strategy = "default"
+			}
+			fmt.Fprintf(w, "    - %s (Strategy: %s)\n", svc.Name, strategy)
+			if len(svc.Backends) > 0 {
+				for _, b := range svc.Backends {
 					if b != nil {
-						fmt.Fprintf(&sb, "        - %s\n", b.String())
+						fmt.Fprintf(w, "        Backend: %s\n", b.String())
 					}
 				}
 			} else {
-				sb.WriteString("      Backends: <none>\n")
+				fmt.Fprintln(w, "        Backend: <none>")
 			}
 		}
 	}
+
+	if len(r.Routes) > 0 {
+		fmt.Fprintln(w, "  Routes:")
+		for i, route := range r.Routes {
+			if route == nil {
+				continue
+			}
+			svcName := "<nil>"
+			if route.Service != nil {
+				svcName = route.Service.Name
+			}
+			fmt.Fprintf(w, "    [%d] %s -> %s\n", i+1, route.Path, svcName)
+		}
+	}
+}
+
+func (r *Runtime) String() string {
+	var sb strings.Builder
+	r.Dump(&sb)
 	return strings.TrimRight(sb.String(), "\n")
 }
