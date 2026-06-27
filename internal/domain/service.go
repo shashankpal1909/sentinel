@@ -1,12 +1,7 @@
 package domain
 
-const (
-	StrategyRoundRobin = "round-robin"
-)
-
 type Service struct {
-	Name     string
-	Strategy string
+	Name string
 
 	Backends []*Backend
 	Balancer Balancer

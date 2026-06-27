@@ -26,11 +26,7 @@ func (r *Runtime) Dump(w io.Writer) {
 			if svc == nil {
 				continue
 			}
-			strategy := svc.Strategy
-			if strategy == "" {
-				strategy = "default"
-			}
-			fmt.Fprintf(w, "    - %s (Strategy: %s)\n", svc.Name, strategy)
+			fmt.Fprintf(w, "    - %s\n", svc.Name)
 			if len(svc.Backends) > 0 {
 				for _, b := range svc.Backends {
 					if b != nil {

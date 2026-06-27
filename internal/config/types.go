@@ -5,6 +5,13 @@ import (
 	"fmt"
 )
 
+type BalancerStrategy string
+
+const (
+	RoundRobin BalancerStrategy = "round-robin"
+	Random     BalancerStrategy = "random"
+)
+
 type Config struct {
 	Server   ServerConfig             `yaml:"server" json:"server"`
 	Services map[string]ServiceConfig `yaml:"services" json:"services"`
@@ -16,8 +23,8 @@ type ServerConfig struct {
 }
 
 type ServiceConfig struct {
-	Strategy string   `yaml:"strategy" json:"strategy"`
-	Backends []string `yaml:"backends" json:"backends"`
+	Strategy BalancerStrategy `yaml:"strategy" json:"strategy"`
+	Backends []string         `yaml:"backends" json:"backends"`
 }
 
 type RouteConfig struct {
