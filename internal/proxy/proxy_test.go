@@ -11,9 +11,10 @@ import (
 	"sentinel/internal/proxy"
 )
 
-func TestProxy_ForwardSuccess(t *testing.T) {
-	// Start mock upstream server echoing back request path and header
+func TestProxy_ForwardSuccessAndCaching(t *testing.T) {
+	hits := 0
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
 		if r.Header.Get("X-Test-Header") != "sentinel" {
 			t.Errorf("expected header X-Test-Header=sentinel, got %s", r.Header.Get("X-Test-Header"))
 		}
@@ -26,21 +27,29 @@ func TestProxy_ForwardSuccess(t *testing.T) {
 	backend := &domain.Backend{URL: u, State: domain.BackendStateHealthy}
 
 	p := proxy.New()
-	req := httptest.NewRequest(http.MethodGet, "/test/path", nil)
-	req.Header.Set("X-Test-Header", "sentinel")
-	rec := httptest.NewRecorder()
 
-	p.Forward(backend, rec, req)
+	// Send multiple sequential requests to verify reverse proxy reuse/caching
+	for i := 0; i < 3; i++ {
+		req := httptest.NewRequest(http.MethodGet, "/test/path", nil)
+		req.Header.Set("X-Test-Header", "sentinel")
+		rec := httptest.NewRecorder()
 
-	res := rec.Result()
-	if res.StatusCode != http.StatusOK {
-		t.Fatalf("expected status 200 OK, got %d", res.StatusCode)
+		p.Forward(rec, req, backend)
+
+		res := rec.Result()
+		if res.StatusCode != http.StatusOK {
+			t.Fatalf("expected status 200 OK on request %d, got %d", i, res.StatusCode)
+		}
+
+		body, _ := io.ReadAll(res.Body)
+		expected := "echo from upstream: /test/path"
+		if string(body) != expected {
+			t.Errorf("expected body %q on request %d, got %q", expected, i, string(body))
+		}
 	}
 
-	body, _ := io.ReadAll(res.Body)
-	expected := "echo from upstream: /test/path"
-	if string(body) != expected {
-		t.Errorf("expected body %q, got %q", expected, string(body))
+	if hits != 3 {
+		t.Errorf("expected 3 hits on upstream server, got %d", hits)
 	}
 }
 
@@ -49,7 +58,7 @@ func TestProxy_ForwardNilBackend(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 
-	p.Forward(nil, rec, req)
+	p.Forward(rec, req, nil)
 
 	res := rec.Result()
 	if res.StatusCode != http.StatusBadGateway {
@@ -58,7 +67,6 @@ func TestProxy_ForwardNilBackend(t *testing.T) {
 }
 
 func TestProxy_ForwardUnreachableBackend(t *testing.T) {
-	// Point backend to closed local port
 	u, _ := url.Parse("http://127.0.0.1:0")
 	backend := &domain.Backend{URL: u, State: domain.BackendStateUnhealthy}
 
@@ -66,7 +74,7 @@ func TestProxy_ForwardUnreachableBackend(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 
-	p.Forward(backend, rec, req)
+	p.Forward(rec, req, backend)
 
 	res := rec.Result()
 	if res.StatusCode != http.StatusBadGateway {
