@@ -21,6 +21,12 @@ services:
     strategy: round-robin
     backends:
       - http://localhost:8080
+    health_check:
+      path: /healthz
+      interval: 5s
+      timeout: 1s
+      healthy_threshold: 2
+      unhealthy_threshold: 3
 routes:
   - path: /test
     service: test-svc
@@ -39,6 +45,10 @@ routes:
 	}
 	if len(cfg.Services) != 1 || len(cfg.Routes) != 1 {
 		t.Errorf("expected 1 service and 1 route, got %d services and %d routes", len(cfg.Services), len(cfg.Routes))
+	}
+	svc := cfg.Services["test-svc"]
+	if svc.HealthCheck == nil || svc.HealthCheck.Path != "/healthz" || svc.HealthCheck.Interval != "5s" {
+		t.Errorf("expected health check path /healthz and interval 5s, got %+v", svc.HealthCheck)
 	}
 }
 

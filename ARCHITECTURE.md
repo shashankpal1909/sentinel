@@ -11,6 +11,7 @@ sentinel/
 │   ├── app/              # Runtime initializer and domain assembler
 │   ├── config/           # YAML configuration loader and validator
 │   ├── domain/           # Core domain models and state entities
+│   ├── health/           # Background active probe health checking engine
 │   ├── loadbalancer/     # Load balancing strategies (Round-Robin, Random)
 │   ├── logger/           # Structured logging setup (slog)
 │   ├── middleware/       # HTTP middleware pipeline and chain orchestration
@@ -23,16 +24,22 @@ sentinel/
 ## Core Architectural Components
 
 ### 1. Configuration & Loader (`internal/config`)
-Loads and parses YAML gateway definitions (`gateway.yaml` or via `CONFIG_PATH`). Validates that all defined routes point to existing services and all backends have valid HTTP/HTTPS URLs before the application starts.
+Loads and parses YAML gateway definitions (`gateway.yaml` or via `CONFIG_PATH`). Validates that all defined routes point to existing services, all backends have valid HTTP/HTTPS URLs, and every service defines a mandatory `health_check` block before the application starts.
 
 ### 2. Domain Models (`internal/domain`)
 Defines the core entities:
-- `Backend`: Represents an upstream target URL and its health state (`Healthy`, `Unhealthy`, `Draining`).
-- `Service`: Groups multiple backends under a logical name assigned to a load balancing strategy.
+- `Backend`: Represents an upstream target URL and its thread-safe atomic health state (`Healthy`, `Unhealthy`, `Unknown`).
+- `Service`: Groups multiple backends under a logical name assigned to a load balancing strategy along with active health checking configuration parameters.
 - `Route`: Maps an incoming URL path prefix to a specific `Service`.
 
-### 3. Load Balancer (`internal/loadbalancer`)
-Provides thread-safe backend selection algorithms:
+### 3. Health Subsystem (`internal/health`)
+Orchestrates active background monitoring for upstream targets:
+- Spawns dedicated periodic worker goroutines per backend executing configured HTTP probes.
+- Enforces success and failure threshold rules before triggering state transitions on backends.
+- Emits structured state change events via `slog` and cleanly stops background probes during graceful shutdown.
+
+### 4. Load Balancer (`internal/loadbalancer`)
+Provides thread-safe backend selection algorithms filtering out unhealthy instances:
 - **Round-Robin**: Sequentially cycles through healthy backends using atomic counters.
 - **Random**: Selects a healthy backend uniformly at random using fast math/rand generators.
 

@@ -13,6 +13,7 @@ import (
 
 	"sentinel/internal/app"
 	"sentinel/internal/config"
+	"sentinel/internal/health"
 	"sentinel/internal/logger"
 	"sentinel/internal/proxy"
 	"sentinel/internal/server"
@@ -42,6 +43,12 @@ func main() {
 	slog.Info("Sentinel runtime initialized successfully")
 	slog.Info(rt.String())
 
+	healthCtx, healthCancel := context.WithCancel(context.Background())
+	defer healthCancel()
+
+	checker := health.NewChecker(rt, l)
+	checker.Start(healthCtx)
+
 	p := proxy.New(l)
 	srv := server.New(rt, p, l)
 
@@ -66,6 +73,9 @@ func main() {
 	<-stop
 
 	slog.Info("Shutting down Sentinel API Gateway gracefully...")
+
+	healthCancel()
+	checker.Stop()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

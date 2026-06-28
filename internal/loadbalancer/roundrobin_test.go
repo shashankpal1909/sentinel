@@ -16,9 +16,9 @@ func TestRoundRobinBalancer_NextBackend(t *testing.T) {
 	u3, _ := url.Parse("http://backend3:8080")
 
 	backends := []*domain.Backend{
-		{URL: u1, State: domain.BackendStateHealthy},
-		{URL: u2, State: domain.BackendStateHealthy},
-		{URL: u3, State: domain.BackendStateHealthy},
+		domain.NewBackend(u1, domain.BackendStateHealthy),
+		domain.NewBackend(u2, domain.BackendStateHealthy),
+		domain.NewBackend(u3, domain.BackendStateHealthy),
 	}
 
 	// Verify the first request goes to backend #0

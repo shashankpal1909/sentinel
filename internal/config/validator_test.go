@@ -6,13 +6,22 @@ import (
 	"sentinel/internal/config"
 )
 
+var validHC = &config.HealthCheckConfig{
+	Path:               "/healthz",
+	Interval:           "10s",
+	Timeout:            "2s",
+	HealthyThreshold:   1,
+	UnhealthyThreshold: 2,
+}
+
 func TestValidate_ValidConfig(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{Port: 8080},
 		Services: map[string]config.ServiceConfig{
 			"auth": {
-				Strategy: "round-robin",
-				Backends: []string{"http://localhost:8001"},
+				Strategy:    "round-robin",
+				Backends:    []string{"http://localhost:8001"},
+				HealthCheck: validHC,
 			},
 		},
 		Routes: []config.RouteConfig{
@@ -44,8 +53,9 @@ func TestValidate_EmptyBackends(t *testing.T) {
 		Server: config.ServerConfig{Port: 8080},
 		Services: map[string]config.ServiceConfig{
 			"auth": {
-				Strategy: "round-robin",
-				Backends: []string{},
+				Strategy:    "round-robin",
+				Backends:    []string{},
+				HealthCheck: validHC,
 			},
 		},
 	}
@@ -59,8 +69,9 @@ func TestValidate_InvalidURL(t *testing.T) {
 		Server: config.ServerConfig{Port: 8080},
 		Services: map[string]config.ServiceConfig{
 			"auth": {
-				Strategy: "round-robin",
-				Backends: []string{"invalid-url"},
+				Strategy:    "round-robin",
+				Backends:    []string{"invalid-url"},
+				HealthCheck: validHC,
 			},
 		},
 	}
@@ -69,13 +80,51 @@ func TestValidate_InvalidURL(t *testing.T) {
 	}
 }
 
-func TestValidate_DuplicateRoutes(t *testing.T) {
+func TestValidate_MissingHealthCheck(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{Port: 8080},
 		Services: map[string]config.ServiceConfig{
 			"auth": {
 				Strategy: "round-robin",
 				Backends: []string{"http://localhost:8001"},
+			},
+		},
+	}
+	if err := config.Validate(cfg); err == nil {
+		t.Errorf("expected error for missing health check config, got nil")
+	}
+}
+
+func TestValidate_InvalidHealthCheck(t *testing.T) {
+	cfg := &config.Config{
+		Server: config.ServerConfig{Port: 8080},
+		Services: map[string]config.ServiceConfig{
+			"auth": {
+				Strategy: "round-robin",
+				Backends: []string{"http://localhost:8001"},
+				HealthCheck: &config.HealthCheckConfig{
+					Path:               "invalid-path",
+					Interval:           "10s",
+					Timeout:            "2s",
+					HealthyThreshold:   1,
+					UnhealthyThreshold: 2,
+				},
+			},
+		},
+	}
+	if err := config.Validate(cfg); err == nil {
+		t.Errorf("expected error for invalid health check path, got nil")
+	}
+}
+
+func TestValidate_DuplicateRoutes(t *testing.T) {
+	cfg := &config.Config{
+		Server: config.ServerConfig{Port: 8080},
+		Services: map[string]config.ServiceConfig{
+			"auth": {
+				Strategy:    "round-robin",
+				Backends:    []string{"http://localhost:8001"},
+				HealthCheck: validHC,
 			},
 		},
 		Routes: []config.RouteConfig{
@@ -93,8 +142,9 @@ func TestValidate_MissingReference(t *testing.T) {
 		Server: config.ServerConfig{Port: 8080},
 		Services: map[string]config.ServiceConfig{
 			"auth": {
-				Strategy: "round-robin",
-				Backends: []string{"http://localhost:8001"},
+				Strategy:    "round-robin",
+				Backends:    []string{"http://localhost:8001"},
+				HealthCheck: validHC,
 			},
 		},
 		Routes: []config.RouteConfig{

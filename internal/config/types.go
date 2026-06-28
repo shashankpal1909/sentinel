@@ -22,9 +22,18 @@ type ServerConfig struct {
 	Port int `yaml:"port" json:"port"`
 }
 
+type HealthCheckConfig struct {
+	Path               string `yaml:"path" json:"path"`
+	Interval           string `yaml:"interval" json:"interval"`
+	Timeout            string `yaml:"timeout" json:"timeout"`
+	HealthyThreshold   int    `yaml:"healthy_threshold" json:"healthy_threshold"`
+	UnhealthyThreshold int    `yaml:"unhealthy_threshold" json:"unhealthy_threshold"`
+}
+
 type ServiceConfig struct {
-	Strategy BalancerStrategy `yaml:"strategy" json:"strategy"`
-	Backends []string         `yaml:"backends" json:"backends"`
+	Strategy    BalancerStrategy   `yaml:"strategy" json:"strategy"`
+	Backends    []string           `yaml:"backends" json:"backends"`
+	HealthCheck *HealthCheckConfig `yaml:"health_check" json:"health_check"`
 }
 
 type RouteConfig struct {

@@ -9,10 +9,8 @@ import (
 
 type contextKey string
 
-const (
-	requestIDKey    contextKey = "request_id"
-	RequestIDHeader            = "X-Request-ID"
-)
+const requestIDKey contextKey = "request_id"
+const RequestIDHeader = "X-Request-ID"
 
 func RequestID() Middleware {
 	return func(h http.Handler) http.Handler {

@@ -5,7 +5,8 @@ Sentinel is a lightweight, high-performance API Gateway built in Go. It provides
 ## Features
 
 - **Dynamic Routing**: Prefix-based HTTP routing to upstream services.
-- **Load Balancing**: Built-in support for `round-robin` and `random` load balancing strategies.
+- **Load Balancing**: Built-in support for `round-robin` and `random` load balancing strategies filtering out unhealthy targets.
+- **Active Health Checking**: Background worker goroutines periodically probe backend endpoints with configurable thresholds to automatically isolate unhealthy services.
 - **Middleware Pipeline**:
   - **Recovery**: Graceful panic recovery with structured logging and `500 Internal Server Error` responses.
   - **Request Tracing**: Automatic generation and propagation of unique `X-Request-ID` headers across request contexts.
@@ -35,7 +36,7 @@ Client Request
 │  4. Router Match          (matches route to service)    │
 │           │                                             │
 │           ▼                                             │
-│  5. Load Balancer         (Round-Robin backend select)  │
+│  5. Load Balancer         (selects healthy backend)     │
 │           │                                             │
 │           ▼                                             │
 │  6. Reverse Proxy         (forwards request & response) │
@@ -45,7 +46,7 @@ Client Request
      Upstream Backend
 ```
 
-For detailed component descriptions, see [ARCHITECTURE.md](file:///Users/shashank/Documents/Projects/sentinel/ARCHITECTURE.md).
+For detailed component descriptions, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Getting Started
 
@@ -79,7 +80,7 @@ docker compose up --build
 
 ## Configuration
 
-Sentinel uses YAML configuration files to define services, backends, and routes. See [example.gateway.yaml](file:///Users/shashank/Documents/Projects/sentinel/example.gateway.yaml) for a complete reference:
+Sentinel uses YAML configuration files to define services, backends, and routes. See [example.gateway.yaml](example.gateway.yaml) for a complete reference:
 
 ```yaml
 server:
@@ -91,6 +92,12 @@ services:
     backends:
       - http://localhost:8001
       - http://localhost:8002
+    health_check:
+      path: /healthz
+      interval: 10s
+      timeout: 2s
+      healthy_threshold: 1
+      unhealthy_threshold: 2
 
 routes:
   - path: /login
