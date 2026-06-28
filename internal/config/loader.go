@@ -9,8 +9,10 @@ import (
 )
 
 func Load(paths ...string) (*Config, error) {
-	// Default config file location unless overridden
 	path := "gateway.yaml"
+	if env := os.Getenv("CONFIG_PATH"); env != "" {
+		path = env
+	}
 	if len(paths) > 0 && paths[0] != "" {
 		path = paths[0]
 	}
