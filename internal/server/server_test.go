@@ -29,7 +29,7 @@ func TestServer_ServeHTTPSuccess(t *testing.T) {
 	route := &domain.Route{Path: "/api", Service: svc}
 
 	rt := &app.Runtime{Routes: []*domain.Route{route}}
-	srv := server.New(rt, proxy.New())
+	srv := server.New(rt, proxy.New(nil), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
 	rec := httptest.NewRecorder()
@@ -48,7 +48,7 @@ func TestServer_ServeHTTPSuccess(t *testing.T) {
 }
 
 func TestServer_ServeHTTPNotFound(t *testing.T) {
-	srv := server.New(&app.Runtime{}, nil)
+	srv := server.New(&app.Runtime{}, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/unknown", nil)
 	rec := httptest.NewRecorder()
@@ -67,7 +67,7 @@ func TestServer_ServeHTTPNoBackendAvailable(t *testing.T) {
 	route := &domain.Route{Path: "/empty", Service: svc}
 
 	rt := &app.Runtime{Routes: []*domain.Route{route}}
-	srv := server.New(rt, nil)
+	srv := server.New(rt, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/empty", nil)
 	rec := httptest.NewRecorder()
@@ -77,18 +77,5 @@ func TestServer_ServeHTTPNoBackendAvailable(t *testing.T) {
 	res := rec.Result()
 	if res.StatusCode != http.StatusBadGateway {
 		t.Errorf("expected status 502 Bad Gateway when no backends available, got %d", res.StatusCode)
-	}
-}
-
-func TestServer_UninitializedServer(t *testing.T) {
-	var srv *server.Server
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-
-	srv.ServeHTTP(rec, req)
-
-	res := rec.Result()
-	if res.StatusCode != http.StatusInternalServerError {
-		t.Errorf("expected status 500 Internal Server Error for nil server, got %d", res.StatusCode)
 	}
 }

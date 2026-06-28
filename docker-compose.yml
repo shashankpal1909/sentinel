@@ -1,0 +1,101 @@
+services:
+  sentinel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sentinel-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - CONFIG_PATH=example.gateway.yaml
+    depends_on:
+      - auth-1
+      - auth-2
+      - auth-3
+      - user-1
+      - user-2
+      - user-3
+      - billing-1
+      - billing-2
+      - billing-3
+      - inventory-1
+      - inventory-2
+      - inventory-3
+    networks:
+      - sentinel-net
+
+  auth-1:
+    image: hashicorp/http-echo:latest
+    command: ["-text=[auth-service] Response from Backend #1 (round-robin)"]
+    networks:
+      - sentinel-net
+
+  auth-2:
+    image: hashicorp/http-echo:latest
+    command: ["-text=[auth-service] Response from Backend #2 (round-robin)"]
+    networks:
+      - sentinel-net
+
+  auth-3:
+    image: hashicorp/http-echo:latest
+    command: ["-text=[auth-service] Response from Backend #3 (round-robin)"]
+    networks:
+      - sentinel-net
+
+  user-1:
+    image: hashicorp/http-echo:latest
+    command: ["-text=[user-service] Response from Backend #1 (round-robin)"]
+    networks:
+      - sentinel-net
+
+  user-2:
+    image: hashicorp/http-echo:latest
+    command: ["-text=[user-service] Response from Backend #2 (round-robin)"]
+    networks:
+      - sentinel-net
+
+  user-3:
+    image: hashicorp/http-echo:latest
+    command: ["-text=[user-service] Response from Backend #3 (round-robin)"]
+    networks:
+      - sentinel-net
+
+  billing-1:
+    image: hashicorp/http-echo:latest
+    command: ["-text=[billing-service] Response from Backend #1 (random)"]
+    networks:
+      - sentinel-net
+
+  billing-2:
+    image: hashicorp/http-echo:latest
+    command: ["-text=[billing-service] Response from Backend #2 (random)"]
+    networks:
+      - sentinel-net
+
+  billing-3:
+    image: hashicorp/http-echo:latest
+    command: ["-text=[billing-service] Response from Backend #3 (random)"]
+    networks:
+      - sentinel-net
+
+  inventory-1:
+    image: hashicorp/http-echo:latest
+    command: ["-text=[inventory-service] Response from Backend #1 (round-robin)"]
+    networks:
+      - sentinel-net
+
+  inventory-2:
+    image: hashicorp/http-echo:latest
+    command: ["-text=[inventory-service] Response from Backend #2 (round-robin)"]
+    networks:
+      - sentinel-net
+
+  inventory-3:
+    image: hashicorp/http-echo:latest
+    command: ["-text=[inventory-service] Response from Backend #3 (round-robin)"]
+    networks:
+      - sentinel-net
+
+networks:
+  sentinel-net:
+    name: sentinel-net

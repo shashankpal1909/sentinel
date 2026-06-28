@@ -30,7 +30,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger.Init("info")
+	l := logger.Init("info")
 	logger.PrintBanner()
 
 	rt, err := app.Build(cfg)
@@ -42,8 +42,8 @@ func main() {
 	slog.Info("Sentinel runtime initialized successfully")
 	slog.Info(rt.String())
 
-	p := proxy.New()
-	srv := server.New(rt, p)
+	p := proxy.New(l)
+	srv := server.New(rt, p, l)
 
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	httpServer := &http.Server{

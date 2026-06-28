@@ -26,7 +26,7 @@ func TestProxy_ForwardSuccessAndCaching(t *testing.T) {
 	u, _ := url.Parse(upstream.URL)
 	backend := &domain.Backend{URL: u, State: domain.BackendStateHealthy}
 
-	p := proxy.New()
+	p := proxy.New(nil)
 
 	// Send multiple sequential requests to verify reverse proxy reuse/caching
 	for i := 0; i < 3; i++ {
@@ -54,7 +54,7 @@ func TestProxy_ForwardSuccessAndCaching(t *testing.T) {
 }
 
 func TestProxy_ForwardNilBackend(t *testing.T) {
-	p := proxy.New()
+	p := proxy.New(nil)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 
@@ -70,7 +70,7 @@ func TestProxy_ForwardUnreachableBackend(t *testing.T) {
 	u, _ := url.Parse("http://127.0.0.1:0")
 	backend := &domain.Backend{URL: u, State: domain.BackendStateUnhealthy}
 
-	p := proxy.New()
+	p := proxy.New(nil)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 

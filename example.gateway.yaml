@@ -1,0 +1,60 @@
+server:
+  port: 8080
+
+services:
+  auth-service:
+    strategy: round-robin
+    backends:
+      - http://auth-1:5678
+      - http://auth-2:5678
+      - http://auth-3:5678
+
+  user-service:
+    strategy: round-robin
+    backends:
+      - http://user-1:5678
+      - http://user-2:5678
+      - http://user-3:5678
+
+  billing-service:
+    strategy: random
+    backends:
+      - http://billing-1:5678
+      - http://billing-2:5678
+      - http://billing-3:5678
+
+  inventory-service:
+    strategy: round-robin
+    backends:
+      - http://inventory-1:5678
+      - http://inventory-2:5678
+      - http://inventory-3:5678
+
+routes:
+  - path: /login
+    service: auth-service
+  - path: /logout
+    service: auth-service
+  - path: /oauth/token
+    service: auth-service
+
+  - path: /users
+    service: user-service
+  - path: /profile
+    service: user-service
+  - path: /settings
+    service: user-service
+
+  - path: /invoices
+    service: billing-service
+  - path: /checkout
+    service: billing-service
+  - path: /payments
+    service: billing-service
+
+  - path: /inventory
+    service: inventory-service
+  - path: /products
+    service: inventory-service
+  - path: /catalog
+    service: inventory-service

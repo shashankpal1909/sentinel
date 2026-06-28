@@ -9,7 +9,7 @@ import (
 )
 
 func Load(paths ...string) (*Config, error) {
-	path := "gateway.yaml"
+	path := "example.gateway.yaml"
 	if env := os.Getenv("CONFIG_PATH"); env != "" {
 		path = env
 	}

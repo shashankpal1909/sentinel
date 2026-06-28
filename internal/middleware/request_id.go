@@ -10,7 +10,7 @@ import (
 type contextKey string
 
 const (
-	RequestIDKey    contextKey = "request_id"
+	requestIDKey    contextKey = "request_id"
 	RequestIDHeader            = "X-Request-ID"
 )
 
@@ -24,7 +24,7 @@ func RequestID() Middleware {
 
 			w.Header().Set(RequestIDHeader, id)
 			r.Header.Set(RequestIDHeader, id)
-			ctx := context.WithValue(r.Context(), RequestIDKey, id)
+			ctx := context.WithValue(r.Context(), requestIDKey, id)
 			h.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -34,7 +34,7 @@ func GetRequestID(ctx context.Context) string {
 	if ctx == nil {
 		return ""
 	}
-	if id, ok := ctx.Value(RequestIDKey).(string); ok {
+	if id, ok := ctx.Value(requestIDKey).(string); ok {
 		return id
 	}
 	return ""

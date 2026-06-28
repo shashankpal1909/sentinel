@@ -18,7 +18,7 @@ func buildTestServer(t *testing.T, cfg *config.Config) *httptest.Server {
 	if err != nil {
 		t.Fatalf("failed to build runtime: %v", err)
 	}
-	srv := server.New(rt, proxy.New())
+	srv := server.New(rt, proxy.New(nil), nil)
 	return httptest.NewServer(srv)
 }
 
