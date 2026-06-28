@@ -31,25 +31,27 @@ func TestChecker_Thresholds(t *testing.T) {
 	b := domain.NewBackend(u, domain.BackendStateHealthy)
 
 	svc := &domain.Service{
-		Name:               "test-svc",
-		Backends:           []*domain.Backend{b},
-		HealthPath:         "/healthz",
-		HealthTimeout:      1 * time.Second,
-		HealthyThreshold:   2,
-		UnhealthyThreshold: 2,
+		Name:     "test-svc",
+		Backends: []*domain.Backend{b},
+		Health: domain.HealthConfig{
+			Path:               "/healthz",
+			Timeout:            1 * time.Second,
+			HealthyThreshold:   2,
+			UnhealthyThreshold: 2,
+		},
 	}
 
 	checker := health.NewChecker(nil, nil)
 	ctx := context.Background()
 
 	// 1st failure: below threshold, should remain healthy
-	checker.CheckBackend(ctx, svc, b, nil)
+	checker.CheckBackend(ctx, svc, b)
 	if b.GetState() != domain.BackendStateHealthy {
 		t.Errorf("expected healthy after 1 failure (threshold 2), got %s", b.GetState())
 	}
 
 	// 2nd failure: reaches threshold, transitions to unhealthy
-	checker.CheckBackend(ctx, svc, b, nil)
+	checker.CheckBackend(ctx, svc, b)
 	if b.GetState() != domain.BackendStateUnhealthy {
 		t.Errorf("expected unhealthy after 2 failures, got %s", b.GetState())
 	}
@@ -58,13 +60,13 @@ func TestChecker_Thresholds(t *testing.T) {
 	statusCode.Store(http.StatusOK)
 
 	// 1st success: below healthy threshold, should remain unhealthy
-	checker.CheckBackend(ctx, svc, b, nil)
+	checker.CheckBackend(ctx, svc, b)
 	if b.GetState() != domain.BackendStateUnhealthy {
 		t.Errorf("expected unhealthy after 1 success (threshold 2), got %s", b.GetState())
 	}
 
 	// 2nd success: reaches threshold, restores to healthy
-	checker.CheckBackend(ctx, svc, b, nil)
+	checker.CheckBackend(ctx, svc, b)
 	if b.GetState() != domain.BackendStateHealthy {
 		t.Errorf("expected healthy after 2 successes, got %s", b.GetState())
 	}
@@ -80,13 +82,15 @@ func TestChecker_StartStop(t *testing.T) {
 	b := domain.NewBackend(u, domain.BackendStateUnknown)
 
 	svc := &domain.Service{
-		Name:               "bg-svc",
-		Backends:           []*domain.Backend{b},
-		HealthPath:         "/",
-		HealthInterval:     10 * time.Millisecond,
-		HealthTimeout:      1 * time.Second,
-		HealthyThreshold:   1,
-		UnhealthyThreshold: 1,
+		Name:     "bg-svc",
+		Backends: []*domain.Backend{b},
+		Health: domain.HealthConfig{
+			Path:               "/",
+			Interval:           10 * time.Millisecond,
+			Timeout:            1 * time.Second,
+			HealthyThreshold:   1,
+			UnhealthyThreshold: 1,
+		},
 	}
 
 	rt := &app.Runtime{

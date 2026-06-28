@@ -53,8 +53,8 @@ func TestBuild_SharedServiceRegistry(t *testing.T) {
 	if rt.Routes[0].Service != svc {
 		t.Errorf("expected route service pointer to match Services map entry")
 	}
-	if svc.HealthPath != "/healthz" || svc.HealthyThreshold != 1 {
-		t.Errorf("expected health check fields to be mapped correctly, got path %s thresh %d", svc.HealthPath, svc.HealthyThreshold)
+	if svc.Health.Path != "/healthz" || svc.Health.HealthyThreshold != 1 {
+		t.Errorf("expected health check fields to be mapped correctly, got path %s thresh %d", svc.Health.Path, svc.Health.HealthyThreshold)
 	}
 }
 

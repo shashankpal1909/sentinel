@@ -47,14 +47,16 @@ func Build(cfg *config.Config) (*Runtime, error) {
 		}
 
 		services[name] = &domain.Service{
-			Name:               name,
-			Balancer:           balancer,
-			Backends:           backends,
-			HealthPath:         hcPath,
-			HealthInterval:     interval,
-			HealthTimeout:      timeout,
-			HealthyThreshold:   healthyThresh,
-			UnhealthyThreshold: unhealthyThresh,
+			Name:     name,
+			Balancer: balancer,
+			Backends: backends,
+			Health: domain.HealthConfig{
+				Path:               hcPath,
+				Interval:           interval,
+				Timeout:            timeout,
+				HealthyThreshold:   healthyThresh,
+				UnhealthyThreshold: unhealthyThresh,
+			},
 		}
 		slog.Debug("Initialized domain service", "service", name, "backends", len(backends), "strategy", svcCfg.Strategy)
 	}

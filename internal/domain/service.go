@@ -5,17 +5,21 @@ import (
 	"time"
 )
 
+type HealthConfig struct {
+	Path               string
+	Interval           time.Duration
+	Timeout            time.Duration
+	HealthyThreshold   int
+	UnhealthyThreshold int
+}
+
 type Service struct {
 	Name string
 
 	Backends []*Backend
 	Balancer Balancer
 
-	HealthPath         string
-	HealthInterval     time.Duration
-	HealthTimeout      time.Duration
-	HealthyThreshold   int
-	UnhealthyThreshold int
+	Health HealthConfig
 }
 
 func (s *Service) GetHealthyBackends() []*Backend {

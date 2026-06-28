@@ -22,7 +22,8 @@ type backendTracker struct {
 type Checker struct {
 	rt       *app.Runtime
 	logger   *slog.Logger
-	trackers map[*domain.Backend]*backendTracker
+	client   *http.Client
+	trackers map[string]*backendTracker
 	mu       sync.RWMutex
 	wg       sync.WaitGroup
 }
@@ -34,49 +35,45 @@ func NewChecker(rt *app.Runtime, logger *slog.Logger) *Checker {
 	return &Checker{
 		rt:       rt,
 		logger:   logger,
-		trackers: make(map[*domain.Backend]*backendTracker),
+		client:   &http.Client{},
+		trackers: make(map[string]*backendTracker),
 	}
 }
 
 func (c *Checker) getTracker(b *domain.Backend) *backendTracker {
+	key := b.URL.String()
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	t, exists := c.trackers[b]
+	t, exists := c.trackers[key]
 	if !exists {
 		t = &backendTracker{}
-		c.trackers[b] = t
+		c.trackers[key] = t
 	}
 	return t
 }
 
-func (c *Checker) CheckBackend(ctx context.Context, svc *domain.Service, b *domain.Backend, client *http.Client) {
+func (c *Checker) CheckBackend(ctx context.Context, svc *domain.Service, b *domain.Backend) {
 	if ctx.Err() != nil {
 		return
 	}
-	if client == nil {
-		client = &http.Client{Timeout: svc.HealthTimeout}
-	}
 
-	targetURL, err := url.JoinPath(b.URL.String(), svc.HealthPath)
+	targetURL, err := url.JoinPath(b.URL.String(), svc.Health.Path)
 	if err != nil {
 		c.logger.Error("Invalid health path URL", "service", svc.Name, "error", err)
 		c.recordResult(svc, b, false)
 		return
 	}
 
-	reqCtx, cancel := context.WithTimeout(ctx, svc.HealthTimeout)
+	reqCtx, cancel := context.WithTimeout(ctx, svc.Health.Timeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, targetURL, nil)
 	if err != nil {
-		if ctx.Err() != nil {
-			return
-		}
 		c.recordResult(svc, b, false)
 		return
 	}
 
-	resp, err := client.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		if ctx.Err() != nil {
 			return
@@ -98,30 +95,31 @@ func (c *Checker) recordResult(svc *domain.Service, b *domain.Backend, success b
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	healthyThresh := svc.HealthyThreshold
-	if healthyThresh <= 0 {
-		healthyThresh = 1
-	}
-	unhealthyThresh := svc.UnhealthyThreshold
-	if unhealthyThresh <= 0 {
-		unhealthyThresh = 1
-	}
-
 	if success {
 		t.consecutiveSuccess++
 		t.consecutiveFailure = 0
-		if b.GetState() != domain.BackendStateHealthy && t.consecutiveSuccess >= healthyThresh {
-			b.SetState(domain.BackendStateHealthy)
-			c.logger.Info("Backend restored to healthy state", "service", svc.Name, "backend", b.URL.String())
+		if b.GetState() != domain.BackendStateHealthy && t.consecutiveSuccess >= svc.Health.HealthyThreshold {
+			c.transitionHealthy(svc, b)
 		}
 	} else {
 		t.consecutiveFailure++
 		t.consecutiveSuccess = 0
-		if b.GetState() != domain.BackendStateUnhealthy && t.consecutiveFailure >= unhealthyThresh {
-			b.SetState(domain.BackendStateUnhealthy)
-			c.logger.Warn("Backend marked unhealthy", "service", svc.Name, "backend", b.URL.String())
+		if b.GetState() != domain.BackendStateUnhealthy && t.consecutiveFailure >= svc.Health.UnhealthyThreshold {
+			c.transitionUnhealthy(svc, b)
 		}
 	}
+}
+
+func (c *Checker) transitionHealthy(svc *domain.Service, b *domain.Backend) {
+	oldState := b.GetState()
+	b.SetState(domain.BackendStateHealthy)
+	c.logger.Info("Backend health state changed", "service", svc.Name, "backend", b.URL.String(), "old_state", oldState.String(), "new_state", "healthy")
+}
+
+func (c *Checker) transitionUnhealthy(svc *domain.Service, b *domain.Backend) {
+	oldState := b.GetState()
+	b.SetState(domain.BackendStateUnhealthy)
+	c.logger.Warn("Backend health state changed", "service", svc.Name, "backend", b.URL.String(), "old_state", oldState.String(), "new_state", "unhealthy")
 }
 
 func (c *Checker) Start(ctx context.Context) {
@@ -132,35 +130,36 @@ func (c *Checker) Start(ctx context.Context) {
 		if svc == nil || len(svc.Backends) == 0 {
 			continue
 		}
-		client := &http.Client{Timeout: svc.HealthTimeout}
 		for _, b := range svc.Backends {
 			if b == nil {
 				continue
 			}
 			c.wg.Add(1)
-			go func(service *domain.Service, backend *domain.Backend) {
-				defer c.wg.Done()
-				if ctx.Err() != nil {
-					return
-				}
-				c.CheckBackend(ctx, service, backend, client)
+			go c.runProbeLoop(ctx, svc, b)
+		}
+	}
+}
 
-				interval := service.HealthInterval
-				if interval <= 0 {
-					interval = 10 * time.Second
-				}
-				ticker := time.NewTicker(interval)
-				defer ticker.Stop()
+func (c *Checker) runProbeLoop(ctx context.Context, svc *domain.Service, b *domain.Backend) {
+	defer c.wg.Done()
+	if ctx.Err() != nil {
+		return
+	}
+	c.CheckBackend(ctx, svc, b)
 
-				for {
-					select {
-					case <-ctx.Done():
-						return
-					case <-ticker.C:
-						c.CheckBackend(ctx, service, backend, client)
-					}
-				}
-			}(svc, b)
+	interval := svc.Health.Interval
+	if interval <= 0 {
+		interval = 10 * time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			c.CheckBackend(ctx, svc, b)
 		}
 	}
 }
