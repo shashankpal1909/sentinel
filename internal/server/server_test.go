@@ -23,7 +23,7 @@ func TestServer_ServeHTTPSuccess(t *testing.T) {
 	defer upstream.Close()
 
 	u, _ := url.Parse(upstream.URL)
-	backend := &domain.Backend{URL: u, State: domain.BackendStateHealthy}
+	backend := domain.NewBackend(u, domain.BackendStateHealthy)
 	lb, _ := loadbalancer.New(config.RoundRobin)
 	svc := &domain.Service{Name: "test-service", Balancer: lb, Backends: []*domain.Backend{backend}}
 	route := &domain.Route{Path: "/api", Service: svc}

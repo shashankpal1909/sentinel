@@ -8,6 +8,12 @@ services:
       - http://auth-1:5678
       - http://auth-2:5678
       - http://auth-3:5678
+    health_check:
+      path: /healthz
+      interval: 10s
+      timeout: 2s
+      healthy_threshold: 1
+      unhealthy_threshold: 2
 
   user-service:
     strategy: round-robin
@@ -15,6 +21,12 @@ services:
       - http://user-1:5678
       - http://user-2:5678
       - http://user-3:5678
+    health_check:
+      path: /healthz
+      interval: 10s
+      timeout: 2s
+      healthy_threshold: 1
+      unhealthy_threshold: 2
 
   billing-service:
     strategy: random
@@ -22,6 +34,12 @@ services:
       - http://billing-1:5678
       - http://billing-2:5678
       - http://billing-3:5678
+    health_check:
+      path: /healthz
+      interval: 10s
+      timeout: 2s
+      healthy_threshold: 1
+      unhealthy_threshold: 2
 
   inventory-service:
     strategy: round-robin
@@ -29,6 +47,12 @@ services:
       - http://inventory-1:5678
       - http://inventory-2:5678
       - http://inventory-3:5678
+    health_check:
+      path: /healthz
+      interval: 10s
+      timeout: 2s
+      healthy_threshold: 1
+      unhealthy_threshold: 2
 
 routes:
   - path: /login

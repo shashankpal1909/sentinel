@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 )
 
 func Validate(cfg *Config) error {
@@ -41,6 +42,30 @@ func Validate(cfg *Config) error {
 			if u.Scheme != "http" && u.Scheme != "https" {
 				return fmt.Errorf("service %q backend URL %q must use http or https scheme", name, b)
 			}
+		}
+
+		if svc.HealthCheck == nil {
+			return fmt.Errorf("service %q is missing mandatory health_check config", name)
+		}
+		if strings.TrimSpace(svc.HealthCheck.Path) == "" {
+			return fmt.Errorf("service %q health_check path cannot be empty", name)
+		}
+		if !strings.HasPrefix(svc.HealthCheck.Path, "/") {
+			return fmt.Errorf("service %q health_check path %q must start with '/'", name, svc.HealthCheck.Path)
+		}
+		interval, err := time.ParseDuration(svc.HealthCheck.Interval)
+		if err != nil || interval <= 0 {
+			return fmt.Errorf("service %q has invalid health_check interval %q", name, svc.HealthCheck.Interval)
+		}
+		timeout, err := time.ParseDuration(svc.HealthCheck.Timeout)
+		if err != nil || timeout <= 0 {
+			return fmt.Errorf("service %q has invalid health_check timeout %q", name, svc.HealthCheck.Timeout)
+		}
+		if svc.HealthCheck.HealthyThreshold <= 0 {
+			return fmt.Errorf("service %q must have healthy_threshold > 0", name)
+		}
+		if svc.HealthCheck.UnhealthyThreshold <= 0 {
+			return fmt.Errorf("service %q must have unhealthy_threshold > 0", name)
 		}
 	}
 

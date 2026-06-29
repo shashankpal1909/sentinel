@@ -15,8 +15,8 @@ func TestRandomBalancer_NextBackend(t *testing.T) {
 	u2, _ := url.Parse("http://backend2:8080")
 
 	backends := []*domain.Backend{
-		{URL: u1, State: domain.BackendStateHealthy},
-		{URL: u2, State: domain.BackendStateHealthy},
+		domain.NewBackend(u1, domain.BackendStateHealthy),
+		domain.NewBackend(u2, domain.BackendStateHealthy),
 	}
 
 	got, err := b.NextBackend(backends)

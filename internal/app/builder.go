@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"time"
 
 	"sentinel/internal/config"
 	"sentinel/internal/domain"
@@ -26,10 +27,7 @@ func Build(cfg *config.Config) (*Runtime, error) {
 			if err != nil {
 				return nil, fmt.Errorf("invalid backend URL %q for service %q: %w", b, name, err)
 			}
-			backends = append(backends, &domain.Backend{
-				URL:   u,
-				State: domain.BackendStateHealthy,
-			})
+			backends = append(backends, domain.NewBackend(u, domain.BackendStateHealthy))
 		}
 
 		balancer, err := loadbalancer.New(svcCfg.Strategy)
@@ -37,10 +35,28 @@ func Build(cfg *config.Config) (*Runtime, error) {
 			return nil, fmt.Errorf("failed to create balancer for service %q: %w", name, err)
 		}
 
+		var hcPath string
+		var interval, timeout time.Duration
+		var healthyThresh, unhealthyThresh int
+		if svcCfg.HealthCheck != nil {
+			hcPath = svcCfg.HealthCheck.Path
+			interval, _ = time.ParseDuration(svcCfg.HealthCheck.Interval)
+			timeout, _ = time.ParseDuration(svcCfg.HealthCheck.Timeout)
+			healthyThresh = svcCfg.HealthCheck.HealthyThreshold
+			unhealthyThresh = svcCfg.HealthCheck.UnhealthyThreshold
+		}
+
 		services[name] = &domain.Service{
 			Name:     name,
 			Balancer: balancer,
 			Backends: backends,
+			Health: domain.HealthConfig{
+				Path:               hcPath,
+				Interval:           interval,
+				Timeout:            timeout,
+				HealthyThreshold:   healthyThresh,
+				UnhealthyThreshold: unhealthyThresh,
+			},
 		}
 		slog.Debug("Initialized domain service", "service", name, "backends", len(backends), "strategy", svcCfg.Strategy)
 	}
