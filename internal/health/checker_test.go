@@ -113,3 +113,64 @@ func TestChecker_StartStop(t *testing.T) {
 		t.Errorf("expected background checker to set healthy state, got %s", b.GetState())
 	}
 }
+
+func TestChecker_UpdateRuntime(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	u, _ := url.Parse(ts.URL)
+	b1 := domain.NewBackend(u, domain.BackendStateUnknown)
+	svc1 := &domain.Service{
+		Name:     "svc-1",
+		Backends: []*domain.Backend{b1},
+		Health: domain.HealthConfig{
+			Path:               "/",
+			Interval:           10 * time.Millisecond,
+			Timeout:            1 * time.Second,
+			HealthyThreshold:   1,
+			UnhealthyThreshold: 1,
+		},
+	}
+
+	rt1 := &app.Runtime{
+		Services: map[string]*domain.Service{"svc-1": svc1},
+	}
+
+	checker := health.NewChecker(rt1, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	checker.Start(ctx)
+	time.Sleep(30 * time.Millisecond)
+
+	if b1.GetState() != domain.BackendStateHealthy {
+		t.Errorf("expected b1 to be healthy, got %s", b1.GetState())
+	}
+
+	// Now update runtime with a new service/backend
+	b2 := domain.NewBackend(u, domain.BackendStateUnknown)
+	svc2 := &domain.Service{
+		Name:     "svc-2",
+		Backends: []*domain.Backend{b2},
+		Health: domain.HealthConfig{
+			Path:               "/",
+			Interval:           10 * time.Millisecond,
+			Timeout:            1 * time.Second,
+			HealthyThreshold:   1,
+			UnhealthyThreshold: 1,
+		},
+	}
+	rt2 := &app.Runtime{
+		Services: map[string]*domain.Service{"svc-2": svc2},
+	}
+
+	checker.UpdateRuntime(ctx, rt2)
+	time.Sleep(30 * time.Millisecond)
+	checker.Stop()
+
+	if b2.GetState() != domain.BackendStateHealthy {
+		t.Errorf("expected b2 to become healthy after UpdateRuntime, got %s", b2.GetState())
+	}
+}

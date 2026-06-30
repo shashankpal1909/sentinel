@@ -14,12 +14,18 @@ const (
 
 type Config struct {
 	Server   ServerConfig             `yaml:"server" json:"server"`
+	Admin    AdminConfig              `yaml:"admin,omitempty" json:"admin,omitempty"`
 	Services map[string]ServiceConfig `yaml:"services" json:"services"`
 	Routes   []RouteConfig            `yaml:"routes" json:"routes"`
 }
 
 type ServerConfig struct {
 	Port int `yaml:"port" json:"port"`
+}
+
+type AdminConfig struct {
+	Host string `yaml:"host,omitempty" json:"host,omitempty"`
+	Port int    `yaml:"port,omitempty" json:"port,omitempty"`
 }
 
 type HealthCheckConfig struct {

@@ -24,6 +24,7 @@ type Checker struct {
 	logger   *slog.Logger
 	client   *http.Client
 	trackers map[string]*backendTracker
+	probes   map[string]context.CancelFunc
 	mu       sync.RWMutex
 	wg       sync.WaitGroup
 }
@@ -37,6 +38,7 @@ func NewChecker(rt *app.Runtime, logger *slog.Logger) *Checker {
 		logger:   logger,
 		client:   &http.Client{},
 		trackers: make(map[string]*backendTracker),
+		probes:   make(map[string]context.CancelFunc),
 	}
 }
 
@@ -122,21 +124,97 @@ func (c *Checker) transitionUnhealthy(svc *domain.Service, b *domain.Backend) {
 	c.logger.Warn("Backend health state changed", "service", svc.Name, "backend", b.URL.String(), "old_state", oldState.String(), "new_state", "unhealthy")
 }
 
+type probeTask struct {
+	svc *domain.Service
+	b   *domain.Backend
+	ctx context.Context
+}
+
 func (c *Checker) Start(ctx context.Context) {
-	if c.rt == nil || c.rt.Services == nil {
-		return
+	c.mu.Lock()
+	if c.probes == nil {
+		c.probes = make(map[string]context.CancelFunc)
 	}
-	for _, svc := range c.rt.Services {
-		if svc == nil || len(svc.Backends) == 0 {
-			continue
-		}
-		for _, b := range svc.Backends {
-			if b == nil {
+	var tasks []probeTask
+	if c.rt != nil && c.rt.Services != nil {
+		for _, svc := range c.rt.Services {
+			if svc == nil || len(svc.Backends) == 0 {
 				continue
 			}
-			c.wg.Add(1)
-			go c.runProbeLoop(ctx, svc, b)
+			for _, b := range svc.Backends {
+				if b == nil || b.URL == nil {
+					continue
+				}
+				key := svc.Name + "@" + b.URL.String()
+				if _, exists := c.probes[key]; !exists {
+					probeCtx, cancel := context.WithCancel(ctx)
+					c.probes[key] = cancel
+					c.wg.Add(1)
+					tasks = append(tasks, probeTask{svc: svc, b: b, ctx: probeCtx})
+				}
+			}
 		}
+	}
+	c.mu.Unlock()
+
+	for _, t := range tasks {
+		go c.runProbeLoop(t.ctx, t.svc, t.b)
+	}
+}
+
+func (c *Checker) UpdateRuntime(ctx context.Context, newRt *app.Runtime) {
+	c.mu.Lock()
+	c.rt = newRt
+	if c.probes == nil {
+		c.probes = make(map[string]context.CancelFunc)
+	}
+	required := make(map[string]struct{})
+	if newRt != nil && newRt.Services != nil {
+		for _, svc := range newRt.Services {
+			if svc == nil {
+				continue
+			}
+			for _, b := range svc.Backends {
+				if b == nil || b.URL == nil {
+					continue
+				}
+				key := svc.Name + "@" + b.URL.String()
+				required[key] = struct{}{}
+			}
+		}
+	}
+
+	for key, cancel := range c.probes {
+		if _, needed := required[key]; !needed {
+			cancel()
+			delete(c.probes, key)
+		}
+	}
+
+	var tasks []probeTask
+	if newRt != nil && newRt.Services != nil {
+		for _, svc := range newRt.Services {
+			if svc == nil {
+				continue
+			}
+			for _, b := range svc.Backends {
+				if b == nil || b.URL == nil {
+					continue
+				}
+				key := svc.Name + "@" + b.URL.String()
+				if _, exists := c.probes[key]; !exists {
+					probeCtx, cancel := context.WithCancel(ctx)
+					c.probes[key] = cancel
+					c.wg.Add(1)
+					tasks = append(tasks, probeTask{svc: svc, b: b, ctx: probeCtx})
+				}
+			}
+		}
+	}
+	c.mu.Unlock()
+
+	for _, t := range tasks {
+		go c.runProbeLoop(t.ctx, t.svc, t.b)
 	}
 }
 
@@ -165,5 +243,11 @@ func (c *Checker) runProbeLoop(ctx context.Context, svc *domain.Service, b *doma
 }
 
 func (c *Checker) Stop() {
+	c.mu.Lock()
+	for _, cancel := range c.probes {
+		cancel()
+	}
+	c.probes = make(map[string]context.CancelFunc)
+	c.mu.Unlock()
 	c.wg.Wait()
 }

@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"sentinel/internal/admin"
 	"sentinel/internal/app"
 	"sentinel/internal/config"
 	"sentinel/internal/health"
@@ -20,7 +21,12 @@ import (
 )
 
 func main() {
-	cfg, err := config.Load()
+	configPath := "example.gateway.yaml"
+	if env := os.Getenv("CONFIG_PATH"); env != "" {
+		configPath = env
+	}
+
+	cfg, err := config.Load(configPath)
 	if err != nil {
 		slog.Error("Failed to load config", "error", err)
 		os.Exit(1)
@@ -34,23 +40,24 @@ func main() {
 	l := logger.Init("info")
 	logger.PrintBanner()
 
-	rt, err := app.Build(cfg)
+	mgr, err := app.NewManager(cfg, configPath, l)
 	if err != nil {
-		slog.Error("Failed to build runtime", "error", err)
+		slog.Error("Failed to initialize runtime manager", "error", err)
 		os.Exit(1)
 	}
 
 	slog.Info("Sentinel runtime initialized successfully")
-	slog.Info(rt.String())
+	slog.Info(mgr.GetRuntime().String())
 
 	healthCtx, healthCancel := context.WithCancel(context.Background())
 	defer healthCancel()
 
-	checker := health.NewChecker(rt, l)
+	checker := health.NewChecker(mgr.GetRuntime(), l)
 	checker.Start(healthCtx)
+	mgr.SetHealthUpdater(healthCtx, checker)
 
 	p := proxy.New(l)
-	srv := server.New(rt, p, l)
+	srv := server.New(mgr, p, l)
 
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	httpServer := &http.Server{
@@ -58,11 +65,27 @@ func main() {
 		Handler: srv,
 	}
 
-	// Start HTTP listener in background goroutine to allow signal interception
+	adminSrv := admin.New(mgr, l)
+	adminAddr := fmt.Sprintf("%s:%d", cfg.Admin.Host, cfg.Admin.Port)
+	adminHttpServer := &http.Server{
+		Addr:    adminAddr,
+		Handler: adminSrv,
+	}
+
+	// Start Gateway HTTP listener in background goroutine
 	go func() {
 		slog.Info("Starting Sentinel API Gateway", "addr", addr)
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("HTTP server failed", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	// Start Admin API HTTP listener in background goroutine
+	go func() {
+		slog.Info("Starting Sentinel Admin API", "addr", adminAddr)
+		if err := adminHttpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("Admin API server failed", "error", err)
 			os.Exit(1)
 		}
 	}()
@@ -81,8 +104,10 @@ func main() {
 	defer cancel()
 
 	if err := httpServer.Shutdown(ctx); err != nil {
-		slog.Error("Server shutdown error", "error", err)
-		os.Exit(1)
+		slog.Error("Gateway server shutdown error", "error", err)
+	}
+	if err := adminHttpServer.Shutdown(ctx); err != nil {
+		slog.Error("Admin server shutdown error", "error", err)
 	}
 
 	slog.Info("Sentinel API Gateway stopped cleanly")

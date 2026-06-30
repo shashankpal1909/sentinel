@@ -17,6 +17,19 @@ func Validate(cfg *Config) error {
 		return fmt.Errorf("invalid server port: %d", cfg.Server.Port)
 	}
 
+	if cfg.Admin.Port == 0 {
+		cfg.Admin.Port = 9901
+	}
+	if cfg.Admin.Host == "" {
+		cfg.Admin.Host = "127.0.0.1"
+	}
+	if cfg.Admin.Port < 0 || cfg.Admin.Port > 65535 {
+		return fmt.Errorf("invalid admin port: %d", cfg.Admin.Port)
+	}
+	if cfg.Admin.Port == cfg.Server.Port {
+		return fmt.Errorf("admin port (%d) cannot be identical to server port (%d)", cfg.Admin.Port, cfg.Server.Port)
+	}
+
 	if len(cfg.Services) == 0 {
 		return errors.New("no services defined in configuration")
 	}

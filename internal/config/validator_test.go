@@ -32,6 +32,34 @@ func TestValidate_ValidConfig(t *testing.T) {
 	if err := config.Validate(cfg); err != nil {
 		t.Errorf("expected valid config, got error: %v", err)
 	}
+	if cfg.Admin.Port != 9901 {
+		t.Errorf("expected default admin port 9901, got %d", cfg.Admin.Port)
+	}
+	if cfg.Admin.Host != "127.0.0.1" {
+		t.Errorf("expected default admin host 127.0.0.1, got %s", cfg.Admin.Host)
+	}
+}
+
+func TestValidate_AdminConfig(t *testing.T) {
+	cfg := &config.Config{
+		Server: config.ServerConfig{Port: 8080},
+		Admin:  config.AdminConfig{Port: 8080},
+		Services: map[string]config.ServiceConfig{
+			"auth": {
+				Strategy:    "round-robin",
+				Backends:    []string{"http://localhost:8001"},
+				HealthCheck: validHC,
+			},
+		},
+	}
+	if err := config.Validate(cfg); err == nil {
+		t.Errorf("expected error when admin port matches server port, got nil")
+	}
+
+	cfg.Admin.Port = 70000
+	if err := config.Validate(cfg); err == nil {
+		t.Errorf("expected error for admin port 70000, got nil")
+	}
 }
 
 func TestValidate_InvalidPort(t *testing.T) {

@@ -6,11 +6,17 @@ import (
 	"strings"
 
 	"sentinel/internal/domain"
+	"sentinel/internal/router"
 )
 
 type Runtime struct {
 	Routes   []*domain.Route
 	Services map[string]*domain.Service
+	Router   *router.Router
+}
+
+func (r *Runtime) GetRuntime() *Runtime {
+	return r
 }
 
 func (r *Runtime) Dump(w io.Writer) {
