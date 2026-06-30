@@ -11,7 +11,6 @@ import (
 
 	"sentinel/internal/admin"
 	"sentinel/internal/app"
-	"sentinel/internal/config"
 	"sentinel/internal/proxy"
 	"sentinel/internal/server"
 )
@@ -53,8 +52,9 @@ routes:
 		t.Fatalf("failed to write initial config: %v", err)
 	}
 
-	cfg, _ := config.Load(configPath)
-	mgr, err := app.NewManager(cfg, configPath, nil)
+	loader := app.NewLoader()
+	cfg, snap, _ := loader.Load(configPath, 1)
+	mgr, err := app.NewManager(snap, cfg)
 	if err != nil {
 		t.Fatalf("failed to create manager: %v", err)
 	}
@@ -63,7 +63,7 @@ routes:
 	gwTS := httptest.NewServer(gwServer)
 	defer gwTS.Close()
 
-	adminServer := admin.New(mgr, nil)
+	adminServer := admin.New(mgr, nil, admin.WithLoader(loader), admin.WithConfigPath(configPath))
 	adminTS := httptest.NewServer(adminServer)
 	defer adminTS.Close()
 

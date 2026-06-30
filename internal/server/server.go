@@ -7,21 +7,20 @@ import (
 	"sentinel/internal/app"
 	"sentinel/internal/middleware"
 	"sentinel/internal/proxy"
-	"sentinel/internal/router"
 )
 
-type RuntimeProvider interface {
-	GetRuntime() *app.Runtime
+type SnapshotProvider interface {
+	Current() *app.Snapshot
 }
 
 type Server struct {
-	provider RuntimeProvider
+	provider SnapshotProvider
 	proxy    *proxy.Proxy
 	handler  http.Handler
 	logger   *slog.Logger
 }
 
-func New(provider RuntimeProvider, p *proxy.Proxy, logger *slog.Logger) *Server {
+func New(provider SnapshotProvider, p *proxy.Proxy, logger *slog.Logger) *Server {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -48,22 +47,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleRoute(w http.ResponseWriter, r *http.Request) {
 	reqID := middleware.GetRequestID(r.Context())
-	var rt *app.Runtime
+	var snap *app.Snapshot
 	if s.provider != nil {
-		rt = s.provider.GetRuntime()
+		snap = s.provider.Current()
 	}
-	if rt == nil {
-		s.logger.Warn("No runtime found", "path", r.URL.Path, "request_id", reqID)
+	if snap == nil || snap.Router == nil {
+		s.logger.Warn("No snapshot found", "path", r.URL.Path, "request_id", reqID)
 		http.NotFound(w, r)
 		return
 	}
 
-	rtr := rt.Router
-	if rtr == nil {
-		rtr = router.New(rt.Routes)
-	}
-
-	service, ok := rtr.Match(r.URL.Path)
+	service, ok := snap.Router.Match(r.URL.Path)
 	if !ok || service == nil {
 		s.logger.Warn("No service found for path", "path", r.URL.Path, "request_id", reqID)
 		http.NotFound(w, r)

@@ -11,7 +11,6 @@ import (
 
 	"sentinel/internal/admin"
 	"sentinel/internal/app"
-	"sentinel/internal/config"
 )
 
 func setupTestServer(t *testing.T) (*admin.Server, *app.Manager, string) {
@@ -42,13 +41,17 @@ routes:
 		t.Fatalf("failed to write temp file: %v", err)
 	}
 
-	cfg, _ := config.Load(configPath)
-	mgr, err := app.NewManager(cfg, configPath, nil)
+	loader := app.NewLoader()
+	cfg, snap, err := loader.Load(configPath, 1)
+	if err != nil {
+		t.Fatalf("unexpected load error: %v", err)
+	}
+	mgr, err := app.NewManager(snap, cfg)
 	if err != nil {
 		t.Fatalf("unexpected manager error: %v", err)
 	}
 
-	srv := admin.New(mgr, nil)
+	srv := admin.New(mgr, nil, admin.WithLoader(loader), admin.WithConfigPath(configPath))
 	return srv, mgr, configPath
 }
 
@@ -63,12 +66,12 @@ func TestAdmin_ConfigDump(t *testing.T) {
 		t.Fatalf("expected 200 OK, got %d", rec.Code)
 	}
 
-	var dumped config.Config
+	var dumped map[string]interface{}
 	if err := json.Unmarshal(rec.Body.Bytes(), &dumped); err != nil {
 		t.Fatalf("failed to unmarshal dump: %v", err)
 	}
-	if dumped.Server.Port != 8080 {
-		t.Errorf("expected server port 8080, got %d", dumped.Server.Port)
+	if serverMap, ok := dumped["server"].(map[string]interface{}); !ok || serverMap["port"].(float64) != 8080 {
+		t.Errorf("expected server port 8080, got %v", dumped)
 	}
 }
 
@@ -98,6 +101,24 @@ func TestAdmin_ClustersAndListeners(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK for /listeners, got %d", rec.Code)
+	}
+}
+
+func TestAdmin_Runtime(t *testing.T) {
+	srv, _, _ := setupTestServer(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/runtime", nil)
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for /runtime, got %d", rec.Code)
+	}
+
+	var rtResp map[string]interface{}
+	json.Unmarshal(rec.Body.Bytes(), &rtResp)
+	if ver, ok := rtResp["version"].(float64); !ok || ver != 1 {
+		t.Errorf("expected version 1, got %v", rtResp["version"])
 	}
 }
 

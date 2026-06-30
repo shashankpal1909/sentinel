@@ -9,7 +9,6 @@ import (
 	"sentinel/internal/config"
 	"sentinel/internal/domain"
 	"sentinel/internal/loadbalancer"
-	"sentinel/internal/router"
 )
 
 func Build(cfg *config.Config) (*Runtime, error) {
@@ -82,6 +81,5 @@ func Build(cfg *config.Config) (*Runtime, error) {
 	return &Runtime{
 		Routes:   routes,
 		Services: services,
-		Router:   router.New(routes),
 	}, nil
 }

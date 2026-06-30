@@ -40,21 +40,29 @@ func main() {
 	l := logger.Init("info")
 	logger.PrintBanner()
 
-	mgr, err := app.NewManager(cfg, configPath, l)
+	loader := app.NewLoader()
+	snap, err := loader.Build(cfg, 1)
+	if err != nil {
+		slog.Error("Failed to build initial snapshot", "error", err)
+		os.Exit(1)
+	}
+
+	mgr, err := app.NewManager(snap, cfg)
 	if err != nil {
 		slog.Error("Failed to initialize runtime manager", "error", err)
 		os.Exit(1)
 	}
 
 	slog.Info("Sentinel runtime initialized successfully")
-	slog.Info(mgr.GetRuntime().String())
+	if snap.Runtime != nil {
+		slog.Info(snap.Runtime.String())
+	}
 
 	healthCtx, healthCancel := context.WithCancel(context.Background())
 	defer healthCancel()
 
 	checker := health.NewChecker(mgr.GetRuntime(), l)
 	checker.Start(healthCtx)
-	mgr.SetHealthUpdater(healthCtx, checker)
 
 	p := proxy.New(l)
 	srv := server.New(mgr, p, l)
@@ -65,7 +73,8 @@ func main() {
 		Handler: srv,
 	}
 
-	adminSrv := admin.New(mgr, l)
+	adminSrv := admin.New(mgr, l, admin.WithLoader(loader), admin.WithConfigPath(configPath))
+	adminSrv.SetHealthUpdater(healthCtx, checker)
 	adminAddr := fmt.Sprintf("%s:%d", cfg.Admin.Host, cfg.Admin.Port)
 	adminHttpServer := &http.Server{
 		Addr:    adminAddr,
