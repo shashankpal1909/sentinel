@@ -9,6 +9,7 @@ import (
 	"sentinel/internal/app"
 	"sentinel/internal/config"
 	"sentinel/internal/proxy"
+	"sentinel/internal/router"
 	"sentinel/internal/server"
 )
 
@@ -18,7 +19,8 @@ func buildTestServer(t *testing.T, cfg *config.Config) *httptest.Server {
 	if err != nil {
 		t.Fatalf("failed to build runtime: %v", err)
 	}
-	srv := server.New(rt, proxy.New(nil), nil)
+	snap := &app.Snapshot{Runtime: rt, Router: router.New(rt.Routes), Version: 1}
+	srv := server.New(snap, proxy.New(nil), nil)
 	return httptest.NewServer(srv)
 }
 

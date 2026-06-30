@@ -12,6 +12,7 @@ import (
 	"sentinel/internal/domain"
 	"sentinel/internal/loadbalancer"
 	"sentinel/internal/proxy"
+	"sentinel/internal/router"
 	"sentinel/internal/server"
 )
 
@@ -29,7 +30,8 @@ func TestServer_ServeHTTPSuccess(t *testing.T) {
 	route := &domain.Route{Path: "/api", Service: svc}
 
 	rt := &app.Runtime{Routes: []*domain.Route{route}}
-	srv := server.New(rt, proxy.New(nil), nil)
+	snap := &app.Snapshot{Runtime: rt, Router: router.New(rt.Routes)}
+	srv := server.New(snap, proxy.New(nil), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
 	rec := httptest.NewRecorder()
@@ -48,7 +50,8 @@ func TestServer_ServeHTTPSuccess(t *testing.T) {
 }
 
 func TestServer_ServeHTTPNotFound(t *testing.T) {
-	srv := server.New(&app.Runtime{}, nil, nil)
+	snap := &app.Snapshot{Runtime: &app.Runtime{}, Router: router.New(nil)}
+	srv := server.New(snap, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/unknown", nil)
 	rec := httptest.NewRecorder()
@@ -67,7 +70,8 @@ func TestServer_ServeHTTPNoBackendAvailable(t *testing.T) {
 	route := &domain.Route{Path: "/empty", Service: svc}
 
 	rt := &app.Runtime{Routes: []*domain.Route{route}}
-	srv := server.New(rt, nil, nil)
+	snap := &app.Snapshot{Runtime: rt, Router: router.New(rt.Routes)}
+	srv := server.New(snap, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/empty", nil)
 	rec := httptest.NewRecorder()
