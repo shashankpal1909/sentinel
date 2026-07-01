@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"sentinel/internal/app"
+	"sentinel/internal/domain"
 )
 
 type Server struct {
@@ -66,12 +67,22 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/services", s.handleClusters) // alias
 	s.mux.HandleFunc("/listeners", s.handleListeners)
 	s.mux.HandleFunc("/routes", s.handleListeners) // alias
+	s.mux.HandleFunc("/backends", s.handleBackends)
 	s.mux.HandleFunc("/config", s.handleConfigApply)
 	s.mux.HandleFunc("/reload", s.handleReload)
 	s.mux.HandleFunc("/runtime", s.handleRuntime)
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	s.mux.ServeHTTP(w, r)
 }
 
@@ -94,10 +105,12 @@ func (s *Server) handleRuntime(w http.ResponseWriter, r *http.Request) {
 
 	snap := s.mgr.Current()
 	resp := runtimeResponse{
-		Version:  0,
-		LoadedAt: "",
-		Services: 0,
-		Routes:   0,
+		Version:           0,
+		LoadedAt:          "",
+		Services:          0,
+		Routes:            0,
+		HealthyBackends:   0,
+		UnhealthyBackends: 0,
 	}
 	if snap != nil {
 		resp.Version = snap.Version
@@ -107,6 +120,20 @@ func (s *Server) handleRuntime(w http.ResponseWriter, r *http.Request) {
 		if snap.Runtime != nil {
 			resp.Services = len(snap.Runtime.Services)
 			resp.Routes = len(snap.Runtime.Routes)
+			for _, svc := range snap.Runtime.Services {
+				if svc == nil {
+					continue
+				}
+				for _, b := range svc.Backends {
+					if b != nil {
+						if b.GetState() == domain.BackendStateHealthy {
+							resp.HealthyBackends++
+						} else {
+							resp.UnhealthyBackends++
+						}
+					}
+				}
+			}
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")

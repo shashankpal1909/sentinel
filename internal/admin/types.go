@@ -13,8 +13,9 @@ type HealthUpdater interface {
 }
 
 type backendResponse struct {
-	URL   string `json:"url"`
-	State string `json:"state"`
+	URL     string `json:"url"`
+	State   string `json:"state"`
+	Healthy bool   `json:"healthy"`
 }
 
 type clusterResponse struct {
@@ -30,8 +31,10 @@ type listenerResponse struct {
 }
 
 type runtimeResponse struct {
-	Version  uint64 `json:"version"`
-	LoadedAt string `json:"loaded_at"`
-	Services int    `json:"services"`
-	Routes   int    `json:"routes"`
+	Version           uint64 `json:"version"`
+	LoadedAt          string `json:"loaded_at"`
+	Services          int    `json:"services"`
+	Routes            int    `json:"routes"`
+	HealthyBackends   int    `json:"healthy_backends"`
+	UnhealthyBackends int    `json:"unhealthy_backends"`
 }
