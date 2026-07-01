@@ -6,6 +6,7 @@ import { RuntimePage } from '@/pages/Runtime';
 import { ServicesPage } from '@/pages/Services';
 import { RoutesPage } from '@/pages/Routes';
 import { BackendsPage } from '@/pages/Backends';
+import { ConfigurationPage } from '@/pages/Configuration';
 
 const router = createBrowserRouter([
   {
@@ -15,6 +16,10 @@ const router = createBrowserRouter([
       {
         index: true,
         element: <DashboardPage />,
+      },
+      {
+        path: 'configuration',
+        element: <ConfigurationPage />,
       },
       {
         path: 'runtime',

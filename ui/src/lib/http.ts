@@ -21,8 +21,25 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Unknown error');
-    throw new HttpError(response.status, `API request failed (${response.status}): ${errorText}`);
+    let errorMsg = `API request failed (${response.status})`;
+    try {
+      const errorText = await response.text();
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.error) {
+          errorMsg = errorJson.error;
+        } else if (errorJson.message) {
+          errorMsg = errorJson.message;
+        } else if (errorText) {
+          errorMsg = errorText;
+        }
+      } catch {
+        if (errorText) errorMsg = errorText;
+      }
+    } catch {
+      // ignore
+    }
+    throw new HttpError(response.status, errorMsg);
   }
 
   return response.json() as Promise<T>;
@@ -37,5 +54,21 @@ export const http = {
       ...options,
       method: 'POST',
       body: body !== undefined ? JSON.stringify(body) : undefined,
+    }),
+
+  postRaw: <T>(
+    endpoint: string,
+    body: string,
+    contentType = 'application/x-yaml',
+    options?: RequestInit
+  ): Promise<T> =>
+    request<T>(endpoint, {
+      ...options,
+      method: 'POST',
+      headers: {
+        'Content-Type': contentType,
+        ...options?.headers,
+      },
+      body,
     }),
 };

@@ -1,11 +1,12 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Cpu, Server, Route, Layers, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, FileCode2, Cpu, Server, Route, Layers, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
 const navItems = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+  { name: 'Configuration', path: '/configuration', icon: FileCode2 },
   { name: 'Runtime', path: '/runtime', icon: Cpu },
   { name: 'Services', path: '/services', icon: Server },
   { name: 'Routes', path: '/routes', icon: Route },
@@ -78,9 +79,12 @@ export const Sidebar: React.FC = () => {
       {/* Footer Info */}
       <div className="p-4 border-t border-border bg-secondary/30">
         <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground">
-          <span>API Epoch</span>
-          <Badge variant="outline" className="text-[10px] font-semibold tracking-wider px-1.5 py-0">
-            READ-ONLY
+          <span>Control Plane</span>
+          <Badge
+            variant="outline"
+            className="text-[10px] font-semibold tracking-wider px-1.5 py-0 bg-success/10 text-success border-success/30"
+          >
+            HOT RELOAD
           </Badge>
         </div>
       </div>
