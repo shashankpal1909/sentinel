@@ -16,7 +16,6 @@ export const ConfigurationPage: React.FC = () => {
   const [initialYaml, setInitialYaml] = useState<string>('');
   const [currentYaml, setCurrentYaml] = useState<string>('');
   const [isLoadingInitial, setIsLoadingInitial] = useState<boolean>(true);
-  const [isValidating, setIsValidating] = useState<boolean>(false);
   const [isApplying, setIsApplying] = useState<boolean>(false);
   const [isReloading, setIsReloading] = useState<boolean>(false);
   const [validation, setValidation] = useState<ValidationResult>({ status: 'ready' });
@@ -81,17 +80,13 @@ export const ConfigurationPage: React.FC = () => {
   }, []);
 
   const handleValidate = useCallback(() => {
-    setIsValidating(true);
-    setTimeout(() => {
-      const res = validateYaml(currentYaml);
-      setValidation(res);
-      setIsValidating(false);
-      if (res.status === 'valid') {
-        toast.success('✔ YAML syntax valid');
-      } else {
-        toast.error(`Invalid YAML syntax on line ${res.line || 'unknown'}`);
-      }
-    }, 150);
+    const res = validateYaml(currentYaml);
+    setValidation(res);
+    if (res.status === 'valid') {
+      toast.success('✔ YAML syntax valid');
+    } else {
+      toast.error(`Invalid YAML syntax on line ${res.line || 'unknown'}`);
+    }
   }, [currentYaml, validateYaml]);
 
   // Apply configuration
@@ -116,6 +111,7 @@ export const ConfigurationPage: React.FC = () => {
         queryClient.invalidateQueries({ queryKey: ['runtime'] }),
         queryClient.invalidateQueries({ queryKey: ['backends'] }),
         queryClient.invalidateQueries({ queryKey: ['services'] }),
+        queryClient.invalidateQueries({ queryKey: ['routes'] }),
       ]);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Configuration rejected';
@@ -143,6 +139,7 @@ export const ConfigurationPage: React.FC = () => {
         queryClient.invalidateQueries({ queryKey: ['runtime'] }),
         queryClient.invalidateQueries({ queryKey: ['backends'] }),
         queryClient.invalidateQueries({ queryKey: ['services'] }),
+        queryClient.invalidateQueries({ queryKey: ['routes'] }),
       ]);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to reload configuration';
@@ -160,16 +157,11 @@ export const ConfigurationPage: React.FC = () => {
         if (isDirty && !isApplying && !isReloading) {
           handleApply();
         }
-      } else if ((e.metaKey || e.ctrlKey) && e.key === 'r') {
-        e.preventDefault();
-        if (!isApplying && !isReloading) {
-          handleReload();
-        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDirty, isApplying, isReloading, handleApply, handleReload]);
+  }, [isDirty, isApplying, isReloading, handleApply]);
 
   const handleEditorChange = (val: string) => {
     setCurrentYaml(val);
@@ -195,7 +187,7 @@ export const ConfigurationPage: React.FC = () => {
           />
           <ConfigToolbar
             isDirty={isDirty}
-            isValidating={isValidating}
+            isValidating={false}
             isApplying={isApplying}
             isReloading={isReloading}
             onValidate={handleValidate}

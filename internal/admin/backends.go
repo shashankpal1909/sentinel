@@ -3,12 +3,15 @@ package admin
 import (
 	"encoding/json"
 	"net/http"
+
+	"sentinel/internal/domain"
 )
 
 type backendDetailResponse struct {
 	Service            string `json:"service"`
 	URL                string `json:"url"`
 	State              string `json:"state"`
+	Healthy            bool   `json:"healthy"`
 	Interval           string `json:"interval"`
 	HealthyThreshold   int    `json:"healthyThreshold"`
 	UnhealthyThreshold int    `json:"unhealthyThreshold"`
@@ -42,6 +45,7 @@ func (s *Server) handleBackends(w http.ResponseWriter, r *http.Request) {
 						Service:            name,
 						URL:                b.URL.String(),
 						State:              b.GetState().String(),
+						Healthy:            b.GetState() == domain.BackendStateHealthy,
 						Interval:           interval,
 						HealthyThreshold:   healthyThresh,
 						UnhealthyThreshold: unhealthyThresh,

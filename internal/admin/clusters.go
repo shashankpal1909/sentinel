@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"sentinel/internal/config"
+	"sentinel/internal/domain"
 )
 
 func (s *Server) handleClusters(w http.ResponseWriter, r *http.Request) {
@@ -25,8 +26,9 @@ func (s *Server) handleClusters(w http.ResponseWriter, r *http.Request) {
 			for _, b := range svc.Backends {
 				if b != nil && b.URL != nil {
 					backends = append(backends, backendResponse{
-						URL:   b.URL.String(),
-						State: b.GetState().String(),
+						URL:     b.URL.String(),
+						State:   b.GetState().String(),
+						Healthy: b.GetState() == domain.BackendStateHealthy,
 					})
 				}
 			}

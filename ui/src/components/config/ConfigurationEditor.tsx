@@ -19,18 +19,18 @@ export const ConfigurationEditor: React.FC<ConfigurationEditorProps> = ({
 
   if (isLoading) {
     return (
-      <div className="w-full h-[600px] rounded-xl border border-border bg-card p-4 space-y-3">
+      <div className="w-full h-[calc(100vh-280px)] min-h-[500px] rounded-xl border border-border bg-card p-4 space-y-3">
         <Skeleton className="h-6 w-1/3" />
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-5/6" />
         <Skeleton className="h-4 w-4/6" />
-        <Skeleton className="h-[480px] w-full" />
+        <Skeleton className="h-[calc(100%-80px)] w-full" />
       </div>
     );
   }
 
   return (
-    <div className="w-full h-[600px] rounded-xl border border-border overflow-hidden bg-[#1e1e1e] shadow-2xs flex flex-col">
+    <div className="w-full h-[calc(100vh-280px)] min-h-[500px] rounded-xl border border-border overflow-hidden bg-[#1e1e1e] shadow-2xs flex flex-col">
       <div className="bg-[#252526] px-4 py-2.5 border-b border-[#333333] flex items-center justify-between select-none">
         <span className="font-mono text-xs text-muted-foreground uppercase tracking-wider font-semibold">
           sentinel.gateway.yaml

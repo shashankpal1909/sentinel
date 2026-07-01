@@ -22,6 +22,7 @@ export async function getBackends(): Promise<BackendDetail[]> {
         service: cluster.name,
         url: backend.url,
         state: backend.state,
+        healthy: backend.healthy ?? (backend.state.toLowerCase() === 'healthy'),
         interval: hc?.interval ?? 'N/A',
         healthyThreshold: hc?.healthy_threshold ?? 0,
         unhealthyThreshold: hc?.unhealthy_threshold ?? 0,

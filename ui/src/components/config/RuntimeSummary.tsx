@@ -2,7 +2,6 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Cpu, Server, Route, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { getRuntime } from '@/api/runtime';
-import { getBackends } from '@/api/backends';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -12,20 +11,11 @@ export const RuntimeSummary: React.FC = () => {
     queryFn: getRuntime,
   });
 
-  const backendsQuery = useQuery({
-    queryKey: ['backends'],
-    queryFn: getBackends,
-  });
-
-  const isLoading = runtimeQuery.isLoading || backendsQuery.isLoading;
+  const isLoading = runtimeQuery.isLoading;
   const runtime = runtimeQuery.data;
-  const backends = backendsQuery.data ?? [];
 
-  const healthyBackends = backends.filter((b) => {
-    const s = b.state.toUpperCase();
-    return s === 'HEALTHY' || s === 'UP' || s === 'OK' || s === 'ONLINE';
-  }).length;
-  const unhealthyBackends = backends.length - healthyBackends;
+  const healthyBackends = runtime?.healthy_backends ?? 0;
+  const unhealthyBackends = runtime?.unhealthy_backends ?? 0;
 
   return (
     <Card className="w-full">

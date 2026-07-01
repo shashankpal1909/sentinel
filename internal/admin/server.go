@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"sentinel/internal/app"
+	"sentinel/internal/domain"
 )
 
 type Server struct {
@@ -104,10 +105,12 @@ func (s *Server) handleRuntime(w http.ResponseWriter, r *http.Request) {
 
 	snap := s.mgr.Current()
 	resp := runtimeResponse{
-		Version:  0,
-		LoadedAt: "",
-		Services: 0,
-		Routes:   0,
+		Version:           0,
+		LoadedAt:          "",
+		Services:          0,
+		Routes:            0,
+		HealthyBackends:   0,
+		UnhealthyBackends: 0,
 	}
 	if snap != nil {
 		resp.Version = snap.Version
@@ -117,6 +120,20 @@ func (s *Server) handleRuntime(w http.ResponseWriter, r *http.Request) {
 		if snap.Runtime != nil {
 			resp.Services = len(snap.Runtime.Services)
 			resp.Routes = len(snap.Runtime.Routes)
+			for _, svc := range snap.Runtime.Services {
+				if svc == nil {
+					continue
+				}
+				for _, b := range svc.Backends {
+					if b != nil {
+						if b.GetState() == domain.BackendStateHealthy {
+							resp.HealthyBackends++
+						} else {
+							resp.UnhealthyBackends++
+						}
+					}
+				}
+			}
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
