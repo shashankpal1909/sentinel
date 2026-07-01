@@ -6,6 +6,7 @@ services:
     container_name: sentinel-gateway
     ports:
       - "8080:8080"
+      - "9901:9901"
     environment:
       - CONFIG_PATH=example.gateway.yaml
     depends_on:
@@ -23,6 +24,19 @@ services:
       - inventory-3
     networks:
       - sentinel-net
+
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: sentinel-ui
+    ports:
+      - "3000:3000"
+    depends_on:
+      - sentinel
+    networks:
+      - sentinel-net
+
 
   auth-1:
     image: hashicorp/http-echo:latest
