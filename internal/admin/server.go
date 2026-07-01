@@ -66,12 +66,22 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/services", s.handleClusters) // alias
 	s.mux.HandleFunc("/listeners", s.handleListeners)
 	s.mux.HandleFunc("/routes", s.handleListeners) // alias
+	s.mux.HandleFunc("/backends", s.handleBackends)
 	s.mux.HandleFunc("/config", s.handleConfigApply)
 	s.mux.HandleFunc("/reload", s.handleReload)
 	s.mux.HandleFunc("/runtime", s.handleRuntime)
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	s.mux.ServeHTTP(w, r)
 }
 
